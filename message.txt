@@ -1,0 +1,7 @@
+Hi ${PERSON_NAME},
+
+Your secret santa is...
+
+*** ${SECRET_SANTA} ***
+
+Good luck!
