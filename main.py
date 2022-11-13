@@ -19,9 +19,11 @@ import random
 import argparse
 from getpass import getpass
 from typing import Set, List
+from datetime import datetime
 
 
-EMAIL_SUBJECT = 'Amigo Secreto 2022'
+CURRENT_YEAR = datetime.now().date().strftime("%Y")
+EMAIL_SUBJECT = f'Amigo Secreto {CURRENT_YEAR}'
 MESSAGE_TEMPLATE = 'message.txt'
 
 
