@@ -18,20 +18,21 @@ from email.mime.text import MIMEText
 import random
 import argparse
 from getpass import getpass
+from typing import Set, List
 
 
-EMAIL_SUBJECT = 'Secret Santa'
+EMAIL_SUBJECT = 'Amigo Secreto 2022'
 MESSAGE_TEMPLATE = 'message.txt'
 
 
-def read_template(filename):
+def read_template(filename: str) -> Template:
     """ Reads string template from file """
     with open(filename, 'r') as template_file:
         template_file_content = template_file.read()
     return Template(template_file_content)
 
 
-def get_people(filename):
+def get_people(filename: str) -> Set:
     """ Function to read the contacts from a given contact file and return a list of names and
     email addresses """
     people = set()
@@ -48,16 +49,13 @@ def get_people(filename):
 
 class Person:
     """ Person class """
-    def __init__(self, name, email=None, gender=None, restrictions=None):
+    def __init__(self, name: str, email: str = None, gender: str = None,
+                 restrictions: Set[str] = None):
         """ Constructor
-        :param name: str
-            Name
-        :param email: str or None
-            E-mail
-        :param gender: str or None
-            Gender
-        :param restrictions: (list of str) or None
-            List of restrictions.
+        :param name: Name
+        :param email: E-mail
+        :param gender: Gender
+        :param restrictions: Set of restrictions.
             If None, it is set to empty list
         """
         self.name = name
@@ -86,13 +84,10 @@ class Person:
 class Messages:
     """ Messages class
     Handles sending of messages by e-mail """
-    def __init__(self, sender, interactive=False):
-        """
-        Constructor
-        :param sender: str
-            Sender e-mail
-        :param interactive: bool
-            Sets interactive mode
+    def __init__(self, sender: str, interactive: bool = False):
+        """ Constructor
+        :param sender: Sender e-mail
+        :param interactive: Sets interactive mode
         """
         self.sender = sender
         self.interactive = interactive
@@ -106,7 +101,7 @@ class Messages:
         self.server.starttls()
         self.server.login(self.sender, getpass())
 
-    def send(self, people):
+    def send(self, people: List[Person]):
         """ Send e-mail to each person """
         for person in people:
             print('Sending to %s (%s)' % (person.name, person.email))
@@ -115,11 +110,10 @@ class Messages:
 
             self._send(person)
 
-    def _send(self, person):
+    def _send(self, person: Person):
         """
         Send e-mail to person
-        :param person: Person
-            Person object
+        :param person: Person object
         """
         msg = MIMEMultipart()  # create a message
 
@@ -143,15 +137,32 @@ class Messages:
         del msg
 
 
-def dfs_draw(people):
-    """
-    Performs draw using an algorithm based on Depth-First Search:
+def brute_force_draw(people: Set[Person]):
+    valid = False
+    while not valid:
+        valid = _brute_force_draw(people)
+
+    return people
+
+
+def _brute_force_draw(people: Set[Person]) -> bool:
+    not_selected = list(people)
+    for p in people:
+        ss = random.choice(not_selected)
+        if ss.name in {p.name} | set(p.restrictions):
+            return False
+        p.set_secret_santa(ss)
+        not_selected.remove(ss)
+
+    return True
+
+
+def dfs_draw(people: Set[Person]) -> Set[Person]:
+    """Performs draw using an algorithm based on Depth-First Search:
     - Selects next node to visit randomly
     - Bottom node should be able to link to top node
-    :param people: set of Person
-        People to be drawed
-    :return: set of Person
-        People with secret santa attribute assigned
+    :param people: People to be drawn
+    :return: People with secret santa attribute assigned
     """
     top = tuple(people)[0]
     # Look for chain that visits all nodes and in which bottom node can link to top
@@ -162,15 +173,12 @@ def dfs_draw(people):
     return people
 
 
-def get_chain(people):
-    """
-    Returns chain of drawed people
+def get_chain(people: Set[Person]) -> List[Person]:
+    """Returns chain of drawn people
     Assumes there is only one big chain that contains every person
-    :param people: set of Person
-        People in the chain
-    :return: list of Person
-        Chain of people where element (i) is secret santa of element (i-1) and first element is the
-        secret santa of last element
+    :param people: People in the chain
+    :return: Chain of people where element (i) is secret santa of element (i-1)
+        and first element is the secret santa of last element
     """
     chain = []
     top = tuple(people)[0]
@@ -184,9 +192,8 @@ def get_chain(people):
     return chain
 
 
-def get_secret_santa(current, top, not_selected):
-    """
-    Function used for secret santa DFS algorithm
+def get_secret_santa(current: Person, top: Person, not_selected: Set[Person]):
+    """Function used for secret santa DFS algorithm
     :param current: Person
         Current node
     :param top: Person
@@ -214,13 +221,10 @@ def get_secret_santa(current, top, not_selected):
     return None
 
 
-def save_output(people, file_name):
-    """
-    Saves draw result to file
-    :param people: set of People
-        Set of People, with secret santa assigned
-    :param file_name: str
-        Name of output file
+def save_output(people: Set[Person], file_name: str):
+    """ Saves draw result to file
+    :param people: Set of People, with secret santa assigned
+    :param file_name: Name of output file
     """
     with open(file_name, 'w') as file_obj:
         for pers in people:
@@ -228,7 +232,7 @@ def save_output(people, file_name):
                            % (pers.name, pers.email, pers.gender, pers.secret_santa))
 
 
-def send_messages(people, sender, interactive=False):
+def send_messages(people: List[Person], sender: str, interactive: bool = False):
     """ Send messages to e-mails """
     msgs = Messages(sender=sender, interactive=interactive)
     msgs.send(people)
@@ -245,7 +249,8 @@ def main():
     args = parser.parse_args()
     # Perform draw
     people = get_people(args.data)
-    dfs_draw(people)
+    # dfs_draw(people)
+    brute_force_draw(people)
 
     if args.output is not None:
         # Save result to output file
@@ -257,7 +262,8 @@ def main():
         random.shuffle(people_list)
         send_messages(people_list, sender=args.sender, interactive=args.interactive)
     else:
-        print([i.name for i in get_chain(people)])
+        for p in people:
+            print("%s -> %s" % (p.name, p.secret_santa.name))
 
 
 if __name__ == '__main__':
