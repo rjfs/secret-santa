@@ -1,14 +1,11 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Secret Santa main script
-
-usage: main.py [-h] [--sender SENDER] [--output OUTPUT] [--interactive] data
 
 TO DO:
 - Simple GUI for interactive mode
 - Draft for when, due to restrictions, a single chain is not possible
 - Add config file with information like email subject
+- Move restrictions into separate file
 
 """
 from string import Template
@@ -23,8 +20,7 @@ from datetime import datetime
 
 
 CURRENT_YEAR = datetime.now().date().strftime("%Y")
-EMAIL_SUBJECT = f'Amigo Secreto {CURRENT_YEAR}'
-MESSAGE_TEMPLATE = 'message.txt'
+EMAIL_SUBJECT = f'Secret Santa {CURRENT_YEAR}'
 
 
 def read_template(filename: str) -> Template:
@@ -86,15 +82,16 @@ class Person:
 class Messages:
     """ Messages class
     Handles sending of messages by e-mail """
-    def __init__(self, sender: str, interactive: bool = False):
+    def __init__(self, sender: str, msg_template: str, interactive: bool = False):
         """ Constructor
         :param sender: Sender e-mail
+        :param msg_template: Message template file path
         :param interactive: Sets interactive mode
         """
         self.sender = sender
         self.interactive = interactive
         self.server = None
-        self.template = read_template(MESSAGE_TEMPLATE)
+        self.template = read_template(msg_template)
         self.set_up()
 
     def set_up(self):
@@ -113,8 +110,8 @@ class Messages:
             self._send(person)
 
     def _send(self, person: Person):
-        """
-        Send e-mail to person
+        """Send e-mail to person
+
         :param person: Person object
         """
         msg = MIMEMultipart()  # create a message
@@ -125,7 +122,7 @@ class Messages:
             SECRET_SANTA=person.secret_santa.name
         )
 
-        # setup the parameters of the message
+        # set up the parameters of the message
         msg['From'] = self.sender
         msg['To'] = person.email
         msg['Subject'] = EMAIL_SUBJECT
@@ -234,17 +231,12 @@ def save_output(people: Set[Person], file_name: str):
                            % (pers.name, pers.email, pers.gender, pers.secret_santa))
 
 
-def send_messages(people: List[Person], sender: str, interactive: bool = False):
-    """ Send messages to e-mails """
-    msgs = Messages(sender=sender, interactive=interactive)
-    msgs.send(people)
-
-
 def main():
     """ Main function """
     # Parse arguments
     parser = argparse.ArgumentParser(description='Secret Santa drawer')
     parser.add_argument('data', help='File with information of each person')
+    parser.add_argument('message_template', help='Path to the e-mail message template')
     parser.add_argument('--sender', help='Sender e-mail')
     parser.add_argument('--output', help='Output file to save draw results')
     parser.add_argument('--interactive', action='store_true', help='Interactive mode')
@@ -262,7 +254,12 @@ def main():
         # Send emails
         people_list = list(people)
         random.shuffle(people_list)
-        send_messages(people_list, sender=args.sender, interactive=args.interactive)
+        msgs = Messages(
+            sender=args.sender,
+            msg_template=args.message_template,
+            interactive=args.interactive
+        )
+        msgs.send(people_list)
     else:
         for p in people:
             print("%s -> %s" % (p.name, p.secret_santa.name))
